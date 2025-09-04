@@ -106,6 +106,64 @@ svg {
   border-color: #d1d5db;
 }
 
+/* 画廊模式布局优化 */
+.gallery-item {
+  transition: all 0.2s ease;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.gallery-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: #d1d5db;
+}
+
+/* 确保画廊模式有足够的底部间距 */
+.grid.content-start {
+  padding-bottom: 2rem;
+  min-height: calc(100vh - 200px);
+}
+
+/* 优化画廊模式的滚动体验 */
+.main-content .overflow-y-auto {
+  scroll-behavior: smooth;
+}
+
+/* 确保画廊模式下的内容有足够的底部空间 */
+.main-content .overflow-y-auto:has(.grid.content-start) {
+  padding-bottom: 1rem;
+}
+
+/* 画廊模式下的网格容器优化 */
+.grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+  align-content: start;
+  min-height: calc(100vh - 300px);
+}
+
+/* 画廊模式下的卡片高度和间距优化 */
+.gallery-item {
+  height: fit-content;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-item .flex.flex-col.flex-1 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-item .mt-auto {
+  margin-top: auto;
+}
+
+/* 确保画廊模式下的内容区域有足够的底部空间 */
+.main-content .overflow-y-auto {
+  padding-bottom: 2rem;
+}
+
 /* 模态框样式优化 */
 .modal-overlay {
   background-color: rgba(0, 0, 0, 0.5);

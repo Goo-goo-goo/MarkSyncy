@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { PlusIcon, SearchIcon, FolderIcon, TrashIcon, EditIcon, ExternalLinkIcon, ClockIcon, GlobeIcon, UploadIcon, ListIcon, GridIcon, CheckSquareIcon, SquareIcon, XIcon } from 'lucide-react';
-import { importBookmarksFromFile } from './utils/bookmarkParser';
+import { PlusIcon, SearchIcon, FolderIcon, TrashIcon, EditIcon, ExternalLinkIcon, ClockIcon, GlobeIcon, UploadIcon, ListIcon, GridIcon, CheckSquareIcon, SquareIcon, XIcon, DownloadIcon } from 'lucide-react';
+import { importBookmarksFromFile, exportBookmarksToFile } from './utils/bookmarkParser';
 
 // 简化的UI组件
 const Button = ({ children, onClick, variant = 'primary', className = '', ...props }) => {
@@ -493,6 +493,24 @@ const ManagePage = () => {
     }
   };
 
+  const handleExportBookmarks = () => {
+    try {
+      // 生成文件名
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const filename = `bookmarks_${dateStr}.html`;
+      
+      // 导出书签
+      exportBookmarksToFile(bookmarks, groups, filename);
+      
+      // 显示成功消息
+      alert(`书签已成功导出到 ${filename}`);
+    } catch (error) {
+      console.error('导出书签失败:', error);
+      alert('导出书签失败，请重试');
+    }
+  };
+
   const handleViewModeChange = async (mode) => {
     setViewMode(mode);
     try {
@@ -676,6 +694,10 @@ const ManagePage = () => {
                 <UploadIcon className="w-4 h-4 mr-2" />
                 导入收藏
               </Button>
+              <Button variant="outline" onClick={handleExportBookmarks} disabled={selectionMode}>
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                导出收藏
+              </Button>
             </div>
           </div>
         </div>
@@ -855,7 +877,7 @@ const ManagePage = () => {
                 )}
               </div>
             ) : (
-              <div className={viewMode === 'gallery' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start' : 'space-y-3'}>
+              <div className={viewMode === 'gallery' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start pb-8' : 'space-y-3'}>
                 {filteredBookmarks.map((bookmark) => (
                   <BookmarkItem
                     key={bookmark.id}
