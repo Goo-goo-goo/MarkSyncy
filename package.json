@@ -1,0 +1,43 @@
+{
+  "name": "marksyncy-extension",
+  "version": "1.0.0",
+  "description": "一个简单的网页收藏扩展，支持右键菜单收藏网页",
+  "main": "src/main.jsx",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:extension": "vite build && cp manifest.json dist/ && cp background.js dist/ && cp content.js dist/ && cp -r icons dist/",
+    "build:manage": "npx tailwindcss -i src/manage.css -o dist/manage-bundle.css --minify && node build-manage.js",
+    "build:all": "npm run build:extension && npm run build:manage"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-slot": "^1.0.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^1.14.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "esbuild": "^0.19.0",
+    "postcss": "^8.4.27",
+    "tailwindcss": "^3.3.3",
+    "vite": "^4.4.5"
+  },
+  "keywords": [
+    "browser-extension",
+    "react",
+    "bookmarks",
+    "edge-extension"
+  ],
+  "author": "MarkSyncy Team",
+  "license": "MIT"
+}
