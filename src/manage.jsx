@@ -449,11 +449,17 @@ const ManagePage = () => {
     try {
       const { bookmarks: importedBookmarks, folders: importedFolders } = await importBookmarksFromFile(file);
       
-      // 合并文件夹
+      // 合并文件夹（检查重复名称）
       const existingFolderNames = groups.map(g => g.name);
       const newFolders = importedFolders.filter(folder => 
         !existingFolderNames.includes(folder.name)
       );
+      
+      // 为新文件夹创建名称到ID的映射
+      const folderNameToIdMap = {};
+      newFolders.forEach(folder => {
+        folderNameToIdMap[folder.name] = folder.id;
+      });
       
       const updatedGroups = [...groups, ...newFolders];
       
@@ -463,7 +469,23 @@ const ManagePage = () => {
         !existingUrls.includes(bookmark.url)
       );
       
-      const updatedBookmarks = [...bookmarks, ...newBookmarks];
+      // 如果书签引用了已存在的文件夹（通过名称），则更新书签的group ID
+      const finalBookmarks = newBookmarks.map(bookmark => {
+        if (bookmark.group && bookmark.group !== 'default') {
+          // 查找书签所属文件夹的名称
+          const bookmarkFolder = importedFolders.find(f => f.id === bookmark.group);
+          if (bookmarkFolder) {
+            // 在现有文件夹中查找同名的文件夹
+            const existingFolder = groups.find(g => g.name === bookmarkFolder.name);
+            if (existingFolder) {
+              return { ...bookmark, group: existingFolder.id };
+            }
+          }
+        }
+        return bookmark;
+      });
+      
+      const updatedBookmarks = [...bookmarks, ...finalBookmarks];
       
       // 保存到存储
       await chrome.storage.local.set({ groups: updatedGroups });
@@ -474,7 +496,7 @@ const ManagePage = () => {
       
       setImportStatus({ 
         loading: false, 
-        message: `成功导入 ${newBookmarks.length} 个书签和 ${newFolders.length} 个文件夹`, 
+        message: `成功导入 ${finalBookmarks.length} 个书签和 ${newFolders.length} 个文件夹`, 
         error: '' 
       });
       
