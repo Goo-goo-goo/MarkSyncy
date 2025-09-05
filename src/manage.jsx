@@ -18,7 +18,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '', ...pro
   
   return (
     <button 
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${className} transform transition-all duration-200 hover:scale-105 active:scale-95`}
       onClick={onClick}
       {...props}
     >
@@ -31,7 +31,7 @@ const Input = ({ placeholder, value, onChange, className = '', ...props }) => {
   return (
     <input
       type="text"
-      className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${className}`}
+      className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200 focus:scale-105 focus:shadow-lg ${className}`}
       placeholder={placeholder}
       value={value}
       onChange={onChange}
@@ -44,8 +44,8 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
   
   return (
-    <div className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+    <div className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+      <div className="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-scale-up transform transition-all duration-300 hover:shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
           <button
@@ -73,10 +73,10 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
   };
 
   return (
-    <div className={`list-item bg-white dark:bg-gray-800 border rounded-lg p-3 hover:shadow-md transition-all ${
-      isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
+    <div className={`list-item bg-white dark:bg-gray-800 border rounded-lg p-3 hover:shadow-md transition-all duration-300 animate-slide-up group ${
+      isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
     }`}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* 选择框 */}
           {selectionMode && (
@@ -100,7 +100,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
               <img 
                 src={bookmark.favicon} 
                 alt="favicon" 
-                className="w-5 h-5"
+                className="w-5 h-5 rounded"
                 onError={(e) => e.target.style.display = 'none'}
               />
             ) : (
@@ -142,7 +142,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
               variant="ghost"
               size="sm"
               onClick={() => window.open(bookmark.url, '_blank')}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400"
               title="打开链接"
             >
               <ExternalLinkIcon className="w-4 h-4" />
@@ -151,7 +151,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
               variant="ghost"
               size="sm"
               onClick={() => onEdit(bookmark)}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-1.5 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400"
               title="编辑"
             >
               <EditIcon className="w-4 h-4" />
@@ -196,10 +196,13 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
   };
 
   return (
-    <div className={`gallery-item bg-white dark:bg-gray-800 border rounded-lg p-4 hover:shadow-lg transition-all ${
-      isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
-    } ${selectionMode ? '' : 'hover:scale-105'} flex flex-col`}>
+    <div className={`gallery-item bg-white dark:bg-gray-800 border rounded-lg p-4 hover:shadow-2xl hover:scale-105 transition-all duration-300 animate-scale-up ${
+      isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-lg scale-105' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-2xl'
+    } flex flex-col relative overflow-hidden group`}>
       <div className="flex flex-col flex-1">
+        {/* 装饰性光效 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+        
         {/* 选择框 */}
         {selectionMode && (
           <div className="flex justify-end mb-2">
@@ -660,13 +663,13 @@ const ManagePage = () => {
   };
 
   return (
-    <div className="manage-container flex flex-col bg-gray-50 dark:bg-gray-900" style={{ height: '100vh' }}>
+    <div className="manage-container flex flex-col bg-gray-50 dark:bg-gray-900 animate-fade-in" style={{ height: '100vh' }}>
       {/* 头部 */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 flex-shrink-0 animate-slide-down">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <FolderIcon className="h-8 w-8 text-blue-600 mr-3" />
+              <FolderIcon className="h-8 w-8 text-blue-600 mr-3 animate-pulse-gentle" />
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100"> 🐳 MarkSyncy ~ 🐳</h1>
             </div>
             <div className="flex items-center gap-4">
@@ -729,7 +732,7 @@ const ManagePage = () => {
 
       {/* 批量操作工具栏 */}
       {selectionMode && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 flex-shrink-0">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 flex-shrink-0 animate-slide-down">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-12">
               <div className="flex items-center gap-4">
@@ -797,7 +800,7 @@ const ManagePage = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* 侧边栏 - 分组管理 */}
-        <div className="sidebar w-64 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-white dark:bg-gray-800">
+        <div className="sidebar w-64 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-white dark:bg-gray-800 animate-slide-in-left">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">分组</h2>
@@ -813,10 +816,10 @@ const ManagePage = () => {
             
             <div className="space-y-1">
               <button
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
                   selectedGroup === 'all' 
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md scale-105' 
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:shadow-md'
                 }`}
                 onClick={() => setSelectedGroup('all')}
               >
@@ -829,17 +832,17 @@ const ManagePage = () => {
               {groups.map((group) => (
                 <div key={group.id} className="flex items-center group">
                   <button
-                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors group-item ${
+                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 group-item ${
                       selectedGroup === group.id 
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 active' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 active shadow-md scale-105' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:shadow-md'
                     }`}
                     onClick={() => setSelectedGroup(group.id)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div 
-                          className="w-3 h-3 rounded-full" 
+                          className="w-3 h-3 rounded-full animate-pulse-gentle transform transition-transform duration-200 group-hover:scale-125" 
                           style={{ backgroundColor: group.color }}
                         />
                         <span>{group.name}</span>
@@ -852,9 +855,9 @@ const ManagePage = () => {
                   {group.id !== 'default' && (
                     <button
                       onClick={() => handleDeleteGroup(group.id)}
-                      className="opacity-0 group-hover:opacity-100 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 transition-all duration-200 hover:scale-110 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                     >
-                      <TrashIcon className="w-3 h-3" />
+                      <TrashIcon className="w-3 h-3 transform transition-transform duration-200 hover:rotate-12" />
                     </button>
                   )}
                 </div>
@@ -864,12 +867,12 @@ const ManagePage = () => {
         </div>
 
         {/* 主要内容 */}
-        <div className="main-content flex-1 overflow-hidden flex flex-col">
+        <div className="main-content flex-1 overflow-hidden flex flex-col animate-slide-in-right">
           {/* 搜索栏 */}
           <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div className="px-6 py-4">
               <div className="relative max-w-md">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 animate-pulse-gentle" />
                 <Input
                   placeholder="搜索收藏..."
                   value={searchTerm}
@@ -882,41 +885,52 @@ const ManagePage = () => {
 
           <div className="flex-1 overflow-y-auto px-6 py-8">
             {filteredBookmarks.length === 0 ? (
-              <div className="text-center py-16">
+              <div className="text-center py-16 animate-fade-in">
                 {bookmarks.length === 0 ? (
                   <>
-                    <FolderIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">暂无收藏</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-6">开始添加您的第一个收藏吧！</p>
-                    <Button onClick={() => setIsCreateModalOpen(true)}>
+                    <FolderIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4 animate-float" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2 animate-slide-up">暂无收藏</h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>开始添加您的第一个收藏吧！</p>
+                    <Button 
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="animate-bounce-in"
+                      style={{ animationDelay: '0.2s' }}
+                    >
                       添加收藏
                     </Button>
                   </>
                 ) : (
                   <>
-                    <SearchIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">未找到匹配的收藏</h3>
-                    <p className="text-gray-500 dark:text-gray-400">尝试使用不同的搜索关键词</p>
+                    <SearchIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4 animate-pulse-gentle" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2 animate-slide-up">未找到匹配的收藏</h3>
+                    <p className="text-gray-500 dark:text-gray-400 animate-slide-up" style={{ animationDelay: '0.1s' }}>尝试使用不同的搜索关键词</p>
                   </>
                 )}
               </div>
             ) : (
               <div className={viewMode === 'gallery' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 content-start pb-8' : 'space-y-3'}>
-                {filteredBookmarks.map((bookmark) => (
-                  <BookmarkItem
-                    key={bookmark.id}
-                    bookmark={bookmark}
-                    group={getGroupById(bookmark.group)}
-                    onDelete={handleDeleteBookmark}
-                    onEdit={(bookmark) => {
-                      setEditingBookmark(bookmark);
-                      setIsEditModalOpen(true);
+                {filteredBookmarks.map((bookmark, index) => (
+                  <div 
+                    key={bookmark.id} 
+                    style={{ 
+                      animationDelay: `${index * 50}ms`,
+                      animationFillMode: 'both'
                     }}
-                    viewMode={viewMode}
-                    selectionMode={selectionMode}
-                    isSelected={selectedBookmarks.has(bookmark.id)}
-                    onToggleSelect={toggleBookmarkSelection}
-                  />
+                  >
+                    <BookmarkItem
+                      bookmark={bookmark}
+                      group={getGroupById(bookmark.group)}
+                      onDelete={handleDeleteBookmark}
+                      onEdit={(bookmark) => {
+                        setEditingBookmark(bookmark);
+                        setIsEditModalOpen(true);
+                      }}
+                      viewMode={viewMode}
+                      selectionMode={selectionMode}
+                      isSelected={selectedBookmarks.has(bookmark.id)}
+                      onToggleSelect={toggleBookmarkSelection}
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -1053,14 +1067,17 @@ const ManagePage = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               分组颜色
             </label>
-            <div className="color-picker">
-              {['#667eea', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'].map((color) => (
+            <div className="color-picker flex gap-2 flex-wrap">
+              {['#667eea', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'].map((color, index) => (
                 <button
                   key={color}
-                  className={`color-option ${
-                    newGroup.color === color ? 'selected' : ''
+                  className={`color-option w-8 h-8 rounded-full border-2 border-gray-200 dark:border-gray-600 transform transition-all duration-200 hover:scale-110 hover:shadow-lg ${
+                    newGroup.color === color ? 'selected ring-2 ring-offset-2 ring-blue-500 scale-110 shadow-lg' : ''
                   }`}
-                  style={{ backgroundColor: color }}
+                  style={{ 
+                    backgroundColor: color,
+                    animationDelay: `${index * 50}ms`
+                  }}
                   onClick={() => setNewGroup({ ...newGroup, color })}
                 />
               ))}
