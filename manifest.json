@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "MarkSyncy - 网页收藏器",
+  "version": "1.0.0",
+  "description": "一个简单的网页收藏扩展，支持右键菜单收藏网页",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "tabs"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "MarkSyncy"
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
