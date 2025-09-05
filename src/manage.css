@@ -11,11 +11,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f9fafb;
+  transition: background-color 0.2s ease;
+}
+
+.dark body {
+  background-color: #111827;
 }
 
 #root {
   min-height: 100vh;
   background-color: #f9fafb;
+  transition: background-color 0.2s ease;
+}
+
+.dark #root {
+  background-color: #111827;
 }
 
 /* 确保图标正确显示 */
@@ -39,13 +49,25 @@ svg {
   border-radius: 4px;
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 4px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 /* 修复管理页面布局问题 */
@@ -59,12 +81,23 @@ svg {
   overflow-y: auto;
   border-right: 1px solid #e5e7eb;
   background-color: white;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.dark .sidebar {
+  border-right: 1px solid #374151;
+  background-color: #1f2937;
 }
 
 .main-content {
   height: 100vh;
   overflow-y: auto;
   background-color: #f9fafb;
+  transition: background-color 0.2s ease;
+}
+
+.dark .main-content {
+  background-color: #111827;
 }
 
 /* 确保按钮样式正确 */

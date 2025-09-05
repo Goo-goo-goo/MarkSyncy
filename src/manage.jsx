@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { PlusIcon, SearchIcon, FolderIcon, TrashIcon, EditIcon, ExternalLinkIcon, ClockIcon, GlobeIcon, UploadIcon, ListIcon, GridIcon, CheckSquareIcon, SquareIcon, XIcon, DownloadIcon } from 'lucide-react';
 import { importBookmarksFromFile, exportBookmarksToFile } from './utils/bookmarkParser';
+import { ThemeProvider } from './contexts/ThemeContext';
+import DarkModeToggle from './components/DarkModeToggle';
 
 // 简化的UI组件
 const Button = ({ children, onClick, variant = 'primary', className = '', ...props }) => {
-  const baseClasses = 'px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+  const baseClasses = 'px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800';
   const variantClasses = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
-    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-500',
+    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 focus:ring-gray-500',
     danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
-    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700 focus:ring-gray-500',
-    ghost: 'hover:bg-gray-100 text-gray-600 hover:text-gray-800 focus:ring-gray-500'
+    outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300 focus:ring-gray-500',
+    ghost: 'hover:bg-gray-100 text-gray-600 hover:text-gray-800 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:ring-gray-500'
   };
   
   return (
@@ -29,7 +31,7 @@ const Input = ({ placeholder, value, onChange, className = '', ...props }) => {
   return (
     <input
       type="text"
-      className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${className}`}
+      className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${className}`}
       placeholder={placeholder}
       value={value}
       onChange={onChange}
@@ -43,12 +45,12 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   
   return (
     <div className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="modal-content bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="modal-content bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl"
+            className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xl"
           >
             ×
           </button>
@@ -71,8 +73,8 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
   };
 
   return (
-    <div className={`list-item bg-white border rounded-lg p-3 hover:shadow-md transition-all ${
-      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+    <div className={`list-item bg-white dark:bg-gray-800 border rounded-lg p-3 hover:shadow-md transition-all ${
+      isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
     }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -108,7 +110,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
           
           {/* 标题 */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-gray-900 truncate" title={bookmark.title}>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={bookmark.title}>
               {bookmark.title}
             </h3>
           </div>
@@ -128,7 +130,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
           )}
           
           {/* 日期 */}
-          <div className="flex-shrink-0 text-xs text-gray-500">
+          <div className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
             {formatDate(bookmark.timestamp)}
           </div>
         </div>
@@ -140,7 +142,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
               variant="ghost"
               size="sm"
               onClick={() => window.open(bookmark.url, '_blank')}
-              className="p-1.5 hover:bg-gray-100"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
               title="打开链接"
             >
               <ExternalLinkIcon className="w-4 h-4" />
@@ -149,7 +151,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
               variant="ghost"
               size="sm"
               onClick={() => onEdit(bookmark)}
-              className="p-1.5 hover:bg-gray-100"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
               title="编辑"
             >
               <EditIcon className="w-4 h-4" />
@@ -158,7 +160,7 @@ const BookmarkListItem = ({ bookmark, group, onDelete, onEdit, selectionMode, is
               variant="ghost"
               size="sm"
               onClick={() => onDelete(bookmark.id)}
-              className="p-1.5 hover:bg-red-50 text-red-600 hover:text-red-700"
+              className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
               title="删除"
             >
               <TrashIcon className="w-4 h-4" />
@@ -194,8 +196,8 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
   };
 
   return (
-    <div className={`gallery-item bg-white border rounded-lg p-4 hover:shadow-lg transition-all ${
-      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+    <div className={`gallery-item bg-white dark:bg-gray-800 border rounded-lg p-4 hover:shadow-lg transition-all ${
+      isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
     } ${selectionMode ? '' : 'hover:scale-105'} flex flex-col`}>
       <div className="flex flex-col flex-1">
         {/* 选择框 */}
@@ -231,7 +233,7 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-gray-900 line-clamp-2 mb-1" title={bookmark.title}>
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 mb-1" title={bookmark.title}>
               {bookmark.title}
             </h3>
             {group && (
@@ -249,19 +251,19 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
 
         {/* URL信息 */}
         <div className="mb-3">
-          <p className="text-xs text-gray-500 mb-1">网址</p>
-          <p className="text-sm text-gray-700 truncate" title={bookmark.url}>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">网址</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 truncate" title={bookmark.url}>
             {bookmark.url}
           </p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
             {getDomain(bookmark.url)}
           </p>
         </div>
 
         {/* 时间信息 */}
         <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-1">添加时间</p>
-          <div className="flex items-center gap-1 text-xs text-gray-600">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">添加时间</p>
+          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
             <ClockIcon className="w-3 h-3" />
             {formatDate(bookmark.timestamp)}
           </div>
@@ -269,7 +271,7 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
 
         {/* 操作按钮 */}
         {!selectionMode && (
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -284,7 +286,7 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
                 variant="ghost"
                 size="sm"
                 onClick={() => onEdit(bookmark)}
-                className="px-3 py-1.5 text-xs hover:bg-gray-50"
+                className="px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 <EditIcon className="w-3 h-3 mr-1" />
                 编辑
@@ -294,7 +296,7 @@ const BookmarkGalleryItem = ({ bookmark, group, onDelete, onEdit, selectionMode,
               variant="ghost"
               size="sm"
               onClick={() => onDelete(bookmark.id)}
-              className="p-1.5 hover:bg-red-50 text-red-600 hover:text-red-700"
+              className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
               title="删除"
             >
               <TrashIcon className="w-4 h-4" />
@@ -449,11 +451,17 @@ const ManagePage = () => {
     try {
       const { bookmarks: importedBookmarks, folders: importedFolders } = await importBookmarksFromFile(file);
       
-      // 合并文件夹
+      // 合并文件夹（检查重复名称）
       const existingFolderNames = groups.map(g => g.name);
       const newFolders = importedFolders.filter(folder => 
         !existingFolderNames.includes(folder.name)
       );
+      
+      // 为新文件夹创建名称到ID的映射
+      const folderNameToIdMap = {};
+      newFolders.forEach(folder => {
+        folderNameToIdMap[folder.name] = folder.id;
+      });
       
       const updatedGroups = [...groups, ...newFolders];
       
@@ -463,7 +471,23 @@ const ManagePage = () => {
         !existingUrls.includes(bookmark.url)
       );
       
-      const updatedBookmarks = [...bookmarks, ...newBookmarks];
+      // 如果书签引用了已存在的文件夹（通过名称），则更新书签的group ID
+      const finalBookmarks = newBookmarks.map(bookmark => {
+        if (bookmark.group && bookmark.group !== 'default') {
+          // 查找书签所属文件夹的名称
+          const bookmarkFolder = importedFolders.find(f => f.id === bookmark.group);
+          if (bookmarkFolder) {
+            // 在现有文件夹中查找同名的文件夹
+            const existingFolder = groups.find(g => g.name === bookmarkFolder.name);
+            if (existingFolder) {
+              return { ...bookmark, group: existingFolder.id };
+            }
+          }
+        }
+        return bookmark;
+      });
+      
+      const updatedBookmarks = [...bookmarks, ...finalBookmarks];
       
       // 保存到存储
       await chrome.storage.local.set({ groups: updatedGroups });
@@ -474,7 +498,7 @@ const ManagePage = () => {
       
       setImportStatus({ 
         loading: false, 
-        message: `成功导入 ${newBookmarks.length} 个书签和 ${newFolders.length} 个文件夹`, 
+        message: `成功导入 ${finalBookmarks.length} 个书签和 ${newFolders.length} 个文件夹`, 
         error: '' 
       });
       
@@ -636,17 +660,17 @@ const ManagePage = () => {
   };
 
   return (
-    <div className="manage-container flex flex-col" style={{ height: '100vh' }}>
+    <div className="manage-container flex flex-col bg-gray-50 dark:bg-gray-900" style={{ height: '100vh' }}>
       {/* 头部 */}
-      <div className="bg-white shadow-sm border-b flex-shrink-0">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <FolderIcon className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900"> 🐳 MarkSyncy ~ 🐳</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100"> 🐳 MarkSyncy ~ 🐳</h1>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 共 {bookmarks.length} 个收藏
               </span>
               
@@ -705,11 +729,11 @@ const ManagePage = () => {
 
       {/* 批量操作工具栏 */}
       {selectionMode && (
-        <div className="bg-blue-50 border-b border-blue-200 flex-shrink-0">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 flex-shrink-0">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-12">
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-blue-900">
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                   已选择 {selectedBookmarks.size} 个收藏
                 </span>
                 <Button
@@ -773,10 +797,10 @@ const ManagePage = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* 侧边栏 - 分组管理 */}
-        <div className="sidebar w-64 flex-shrink-0 border-r border-gray-200 overflow-y-auto">
+        <div className="sidebar w-64 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-white dark:bg-gray-800">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">分组</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">分组</h2>
               <Button 
                 variant="outline" 
                 size="sm"
@@ -791,14 +815,14 @@ const ManagePage = () => {
               <button
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   selectedGroup === 'all' 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 onClick={() => setSelectedGroup('all')}
               >
                 <div className="flex items-center justify-between">
                   <span>全部收藏</span>
-                  <span className="text-xs text-gray-500">{bookmarks.length}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{bookmarks.length}</span>
                 </div>
               </button>
               
@@ -807,8 +831,8 @@ const ManagePage = () => {
                   <button
                     className={`flex-1 text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors group-item ${
                       selectedGroup === group.id 
-                        ? 'bg-blue-100 text-blue-700 active' 
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 active' 
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                     onClick={() => setSelectedGroup(group.id)}
                   >
@@ -820,7 +844,7 @@ const ManagePage = () => {
                         />
                         <span>{group.name}</span>
                       </div>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {getGroupBookmarkCount(group.id)}
                       </span>
                     </div>
@@ -828,7 +852,7 @@ const ManagePage = () => {
                   {group.id !== 'default' && (
                     <button
                       onClick={() => handleDeleteGroup(group.id)}
-                      className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 transition-opacity"
                     >
                       <TrashIcon className="w-3 h-3" />
                     </button>
@@ -842,10 +866,10 @@ const ManagePage = () => {
         {/* 主要内容 */}
         <div className="main-content flex-1 overflow-hidden flex flex-col">
           {/* 搜索栏 */}
-          <div className="bg-white border-b flex-shrink-0">
+          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div className="px-6 py-4">
               <div className="relative max-w-md">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                 <Input
                   placeholder="搜索收藏..."
                   value={searchTerm}
@@ -861,18 +885,18 @@ const ManagePage = () => {
               <div className="text-center py-16">
                 {bookmarks.length === 0 ? (
                   <>
-                    <FolderIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">暂无收藏</h3>
-                    <p className="text-gray-500 mb-6">开始添加您的第一个收藏吧！</p>
+                    <FolderIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">暂无收藏</h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">开始添加您的第一个收藏吧！</p>
                     <Button onClick={() => setIsCreateModalOpen(true)}>
                       添加收藏
                     </Button>
                   </>
                 ) : (
                   <>
-                    <SearchIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">未找到匹配的收藏</h3>
-                    <p className="text-gray-500">尝试使用不同的搜索关键词</p>
+                    <SearchIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">未找到匹配的收藏</h3>
+                    <p className="text-gray-500 dark:text-gray-400">尝试使用不同的搜索关键词</p>
                   </>
                 )}
               </div>
@@ -908,7 +932,7 @@ const ManagePage = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               标题
             </label>
             <Input
@@ -918,7 +942,7 @@ const ManagePage = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               URL
             </label>
             <Input
@@ -928,13 +952,13 @@ const ManagePage = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               分组
             </label>
             <select
               value={newBookmark.group}
               onChange={(e) => setNewBookmark({ ...newBookmark, group: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
@@ -962,7 +986,7 @@ const ManagePage = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               标题
             </label>
             <Input
@@ -972,7 +996,7 @@ const ManagePage = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               URL
             </label>
             <Input
@@ -982,13 +1006,13 @@ const ManagePage = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               分组
             </label>
             <select
               value={editingBookmark?.group || 'default'}
               onChange={(e) => setEditingBookmark({ ...editingBookmark, group: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
@@ -1016,7 +1040,7 @@ const ManagePage = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               分组名称
             </label>
             <Input
@@ -1026,7 +1050,7 @@ const ManagePage = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               分组颜色
             </label>
             <div className="color-picker">
@@ -1061,7 +1085,7 @@ const ManagePage = () => {
       >
         <div className="space-y-4">
           <div>
-            <p className="text-sm text-gray-600 mb-3">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
               将选中的 {selectedBookmarks.size} 个收藏移动到：
             </p>
             <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -1069,15 +1093,15 @@ const ManagePage = () => {
                 <button
                   key={group.id}
                   onClick={() => handleBatchMove(group.id)}
-                  className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                  className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div 
                       className="w-4 h-4 rounded-full" 
                       style={{ backgroundColor: group.color }}
                     />
-                    <span className="font-medium">{group.name}</span>
-                    <span className="text-xs text-gray-500 ml-auto">
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{group.name}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
                       {getGroupBookmarkCount(group.id)} 个收藏
                     </span>
                   </div>
@@ -1105,14 +1129,14 @@ const ManagePage = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               选择书签文件
             </label>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
               支持 Edge、Chrome、Firefox 等浏览器导出的书签文件（HTML 格式）
             </p>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <UploadIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+              <UploadIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
               <input
                 type="file"
                 accept=".html,.htm"
@@ -1129,7 +1153,7 @@ const ManagePage = () => {
               >
                 {importStatus.loading ? '导入中...' : '选择文件'}
               </label>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 或拖拽文件到此处
               </p>
             </div>
@@ -1137,26 +1161,26 @@ const ManagePage = () => {
           
           {/* 状态信息 */}
           {importStatus.message && (
-            <div className="bg-green-50 border border-green-200 rounded-md p-3">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md p-3">
               <div className="flex items-center">
-                <div className="text-green-800 text-sm">{importStatus.message}</div>
+                <div className="text-green-800 dark:text-green-300 text-sm">{importStatus.message}</div>
               </div>
             </div>
           )}
           
           {importStatus.error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
               <div className="flex items-center">
-                <div className="text-red-800 text-sm">{importStatus.error}</div>
+                <div className="text-red-800 dark:text-red-300 text-sm">{importStatus.error}</div>
               </div>
             </div>
           )}
           
           {importStatus.loading && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                <div className="text-blue-800 text-sm">{importStatus.message}</div>
+                <div className="text-blue-800 dark:text-blue-300 text-sm">{importStatus.message}</div>
               </div>
             </div>
           )}
@@ -1168,9 +1192,19 @@ const ManagePage = () => {
           </div>
         </div>
       </Modal>
+      
+      {/* 夜间模式切换按钮 */}
+      <DarkModeToggle />
     </div>
   );
 };
 
-// 导出ManagePage组件
-export default ManagePage;
+// 用主题提供者包装的ManagePage组件
+const ManagePageWithTheme = () => (
+  <ThemeProvider>
+    <ManagePage />
+  </ThemeProvider>
+);
+
+// 导出包装后的组件
+export default ManagePageWithTheme;

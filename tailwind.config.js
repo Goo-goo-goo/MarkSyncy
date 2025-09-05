@@ -8,6 +8,7 @@ export default {
     "./dist/manage.html",
     "./dist/**/*.html"
   ],
+  darkMode: 'class', // 启用类模式的夜间模式
   theme: {
     extend: {},
   },

@@ -39,7 +39,7 @@ export const parseNetscapeBookmarks = (htmlContent) => {
             name: folderName,
             color: getRandomColor(),
             createdAt: addDate ? new Date(parseInt(addDate) * 1000).toISOString() : new Date().toISOString(),
-            parentFolder: folderStack[folderStack.length - 1], // 当前栈顶作为父文件夹
+            parentFolder: folderStack[folderStack.length - 1] === 'default' ? 'default' : folderStack[folderStack.length - 1], // 当前栈顶作为父文件夹
             isPersonalToolbar: isPersonalToolbar,
             level: level
           };
@@ -210,18 +210,22 @@ export const exportBookmarksToNetscape = (bookmarks, folders) => {
   
   // 构建层级关系
   folders.forEach(folder => {
-    if (folder.parentFolder === 'default') {
+    if (folder.parentFolder === 'default' || !folder.parentFolder) {
       rootFolders.push(folderMap.get(folder.id));
     } else {
       const parent = folderMap.get(folder.parentFolder);
       if (parent) {
         parent.children.push(folderMap.get(folder.id));
+      } else {
+        // 如果找不到父文件夹，将其作为根文件夹
+        rootFolders.push(folderMap.get(folder.id));
       }
     }
   });
   
-  // 递归生成文件夹HTML
-  const generateFolderHTML = (folder) => {
+  // 递归生成文件夹HTML，保持正确的缩进
+  const generateFolderHTML = (folder, indent = 0) => {
+    const spaces = '    '.repeat(indent);
     const addDate = Math.floor(new Date(folder.createdAt).getTime() / 1000);
     const lastModified = Math.floor(new Date(folder.createdAt).getTime() / 1000);
     
@@ -231,23 +235,23 @@ export const exportBookmarksToNetscape = (bookmarks, folders) => {
       attributes += ' PERSONAL_TOOLBAR_FOLDER="true"';
     }
     
-    let html = `<DT><H3 ${attributes}>${escapeHtml(folder.name)}</H3>\n`;
-    html += `<DL><p>\n`;
-    
-    // 添加子文件夹
-    folder.children.forEach(childFolder => {
-      html += generateFolderHTML(childFolder);
-    });
+    let html = `${spaces}<DT><H3 ${attributes}>${escapeHtml(folder.name)}</H3>\n`;
+    html += `${spaces}<DL><p>\n`;
     
     // 添加该文件夹下的书签
     const folderBookmarks = bookmarks.filter(bookmark => bookmark.group === folder.id);
     folderBookmarks.forEach(bookmark => {
-      const bookmarkDate = Math.floor(new Date(bookmark.timestamp).getTime() / 1000);
+      const bookmarkDate = bookmark.timestamp ? Math.floor(new Date(bookmark.timestamp).getTime() / 1000) : now;
       const iconAttr = bookmark.favicon ? ` ICON="${escapeHtml(bookmark.favicon)}"` : '';
-      html += `<DT><A HREF="${escapeHtml(bookmark.url)}" ADD_DATE="${bookmarkDate}"${iconAttr}>${escapeHtml(bookmark.title)}</A>\n`;
+      html += `${spaces}    <DT><A HREF="${escapeHtml(bookmark.url)}" ADD_DATE="${bookmarkDate}"${iconAttr}>${escapeHtml(bookmark.title)}</A>\n`;
     });
     
-    html += `</DL><p>\n`;
+    // 添加子文件夹
+    folder.children.forEach(childFolder => {
+      html += generateFolderHTML(childFolder, indent + 1);
+    });
+    
+    html += `${spaces}</DL><p>\n`;
     return html;
   };
   
@@ -265,22 +269,22 @@ export const exportBookmarksToNetscape = (bookmarks, folders) => {
   // 优先添加个人工具栏文件夹（如果有）
   const personalToolbarFolder = rootFolders.find(folder => folder.isPersonalToolbar);
   if (personalToolbarFolder) {
-    content += generateFolderHTML(personalToolbarFolder);
+    content += generateFolderHTML(personalToolbarFolder, 0);
   }
-  
-  // 添加其他根文件夹
-  rootFolders.forEach(folder => {
-    if (!folder.isPersonalToolbar) {
-      content += generateFolderHTML(folder);
-    }
-  });
   
   // 添加根级别的书签（没有文件夹的书签）
   const rootBookmarks = bookmarks.filter(bookmark => bookmark.group === 'default' || !bookmark.group);
   rootBookmarks.forEach(bookmark => {
-    const bookmarkDate = Math.floor(new Date(bookmark.timestamp).getTime() / 1000);
+    const bookmarkDate = bookmark.timestamp ? Math.floor(new Date(bookmark.timestamp).getTime() / 1000) : now;
     const iconAttr = bookmark.favicon ? ` ICON="${escapeHtml(bookmark.favicon)}"` : '';
-    content += `<DT><A HREF="${escapeHtml(bookmark.url)}" ADD_DATE="${bookmarkDate}"${iconAttr}>${escapeHtml(bookmark.title)}</A>\n`;
+    content += `    <DT><A HREF="${escapeHtml(bookmark.url)}" ADD_DATE="${bookmarkDate}"${iconAttr}>${escapeHtml(bookmark.title)}</A>\n`;
+  });
+  
+  // 添加其他根文件夹
+  rootFolders.forEach(folder => {
+    if (!folder.isPersonalToolbar) {
+      content += generateFolderHTML(folder, 0);
+    }
   });
   
   content += `</DL><p>\n`;
