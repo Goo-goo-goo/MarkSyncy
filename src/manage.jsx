@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import DarkModeToggle from './components/DarkModeToggle';
 import SettingsToggle from './components/SettingsToggle';
 import SyncSettingsModal from './components/SyncSettingsModal';
+import './utils/syncService';
 
 // 简化的UI组件
 const Button = ({ children, onClick, variant = 'primary', className = '', ...props }) => {
@@ -371,6 +372,33 @@ const ManagePage = () => {
       setBookmarks(bookmarksWithId);
       setGroups(groups);
       setViewMode(result.viewMode || 'list');
+      
+      // 注册数据更新函数
+      window.updateBookmarksAndGroups = (newBookmarks, newGroups) => {
+        const processedBookmarks = newBookmarks.map((bookmark, index) => ({
+          ...bookmark,
+          id: bookmark.id || `bookmark_${index}_${Date.now()}`,
+          group: bookmark.group || 'default'
+        }));
+        
+        let processedGroups = newGroups;
+        if (!processedGroups.find(g => g.id === "default")) {
+          processedGroups = [
+            { id: "default", name: "默认分组", color: "#667eea", createdAt: new Date().toISOString() },
+            ...processedGroups
+          ];
+        }
+        
+        setBookmarks(processedBookmarks);
+        setGroups(processedGroups);
+      };
+      
+      // 自动从云端同步（跳过页面刷新）
+      if (window.syncService) {
+        setTimeout(async () => {
+          await window.syncService.autoSyncFromCloud(true); // true表示跳过刷新
+        }, 1000); // 延迟1秒执行，避免影响页面加载
+      }
     } catch (error) {
       console.error('加载数据失败:', error);
     }
@@ -408,6 +436,11 @@ const ManagePage = () => {
     const updatedBookmarks = [...bookmarks, bookmark];
     await saveBookmarks(updatedBookmarks);
     
+    // 自动同步到云端
+    if (window.syncService) {
+      await window.syncService.autoSyncToCloud(updatedBookmarks, groups);
+    }
+    
     setNewBookmark({ title: '', url: '', group: 'default' });
     setIsCreateModalOpen(false);
   };
@@ -420,6 +453,12 @@ const ManagePage = () => {
     );
     
     await saveBookmarks(updatedBookmarks);
+    
+    // 自动同步到云端
+    if (window.syncService) {
+      await window.syncService.autoSyncToCloud(updatedBookmarks, groups);
+    }
+    
     setIsEditModalOpen(false);
     setEditingBookmark(null);
   };
@@ -429,6 +468,11 @@ const ManagePage = () => {
     
     const updatedBookmarks = bookmarks.filter(bookmark => bookmark.id !== id);
     await saveBookmarks(updatedBookmarks);
+    
+    // 自动同步到云端
+    if (window.syncService) {
+      await window.syncService.autoSyncToCloud(updatedBookmarks, groups);
+    }
   };
 
   const handleCreateGroup = async () => {
@@ -443,6 +487,11 @@ const ManagePage = () => {
     
     const updatedGroups = [...groups, group];
     await saveGroups(updatedGroups);
+    
+    // 自动同步到云端
+    if (window.syncService) {
+      await window.syncService.autoSyncToCloud(bookmarks, updatedGroups);
+    }
     
     setNewGroup({ name: '', color: '#667eea' });
     setIsCreateGroupModalOpen(false);
@@ -501,6 +550,11 @@ const ManagePage = () => {
       
       setGroups(updatedGroups);
       setBookmarks(updatedBookmarks);
+      
+      // 自动同步到云端
+      if (window.syncService) {
+        await window.syncService.autoSyncToCloud(updatedBookmarks, updatedGroups);
+      }
       
       setImportStatus({ 
         loading: false, 
@@ -588,6 +642,12 @@ const ManagePage = () => {
       
       await chrome.storage.local.set({ bookmarks: updatedBookmarks });
       setBookmarks(updatedBookmarks);
+      
+      // 自动同步到云端
+      if (window.syncService) {
+        await window.syncService.autoSyncToCloud(updatedBookmarks, groups);
+      }
+      
       setSelectedBookmarks(new Set());
       setSelectionMode(false);
     } catch (error) {
@@ -619,6 +679,12 @@ const ManagePage = () => {
       
       await chrome.storage.local.set({ bookmarks: updatedBookmarks });
       setBookmarks(updatedBookmarks);
+      
+      // 自动同步到云端
+      if (window.syncService) {
+        await window.syncService.autoSyncToCloud(updatedBookmarks, groups);
+      }
+      
       setSelectedBookmarks(new Set());
       setSelectionMode(false);
       setIsBatchMoveModalOpen(false);
@@ -633,17 +699,27 @@ const ManagePage = () => {
       return;
     }
     
-    if (!confirm('确定要删除这个分组吗？该分组下的所有收藏将移动到默认分组。')) return;
+    // 统计该分组下的收藏数量
+    const bookmarksInGroup = bookmarks.filter(bookmark => bookmark.group === groupId);
+    const bookmarkCount = bookmarksInGroup.length;
     
-    // 将该分组下的收藏移动到默认分组
-    const updatedBookmarks = bookmarks.map(bookmark => 
-      bookmark.group === groupId ? { ...bookmark, group: 'default' } : bookmark
-    );
+    if (!confirm(`确定要删除这个分组吗？该分组下的 ${bookmarkCount} 个收藏也将被一并删除。此操作不可恢复！`)) {
+      return;
+    }
     
+    // 删除该分组下的所有收藏
+    const updatedBookmarks = bookmarks.filter(bookmark => bookmark.group !== groupId);
+    
+    // 删除该分组
     const updatedGroups = groups.filter(group => group.id !== groupId);
     
     await saveBookmarks(updatedBookmarks);
     await saveGroups(updatedGroups);
+    
+    // 自动同步到云端
+    if (window.syncService) {
+      await window.syncService.autoSyncToCloud(updatedBookmarks, updatedGroups);
+    }
     
     if (selectedGroup === groupId) {
       setSelectedGroup('all');

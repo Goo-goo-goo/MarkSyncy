@@ -6,6 +6,7 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, syncing, success, error
   const [syncMessage, setSyncMessage] = useState('');
   const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
 
   // Gitee API 配置
   const GITEE_API_BASE = 'https://gitee.com/api/v5';
@@ -337,6 +338,11 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
         groups: data.groups || [],
       });
 
+      // 触发页面更新（如果存在更新函数）
+      if (window.updateBookmarksAndGroups) {
+        window.updateBookmarksAndGroups(data.bookmarks || [], data.groups || []);
+      }
+
       setSyncStatus('success');
       setSyncMessage('从云端同步成功！');
       setLastSyncTime(new Date());
@@ -346,37 +352,45 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
         giteeSyncToken: giteeToken,
         lastSyncTime: new Date().toISOString(),
       });
-
-      // 刷新页面
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
     } catch (error) {
       setSyncStatus('error');
       setSyncMessage(`同步失败: ${error.message}`);
     }
   };
 
-  // 加载保存的 token
+  // 加载保存的 token 和设置
   React.useEffect(() => {
-    const loadSavedToken = async () => {
+    const loadSavedSettings = async () => {
       try {
-        const result = await chrome.storage.local.get(['giteeSyncToken', 'lastSyncTime']);
+        const result = await chrome.storage.local.get(['giteeSyncToken', 'lastSyncTime', 'autoSyncEnabled']);
         if (result.giteeSyncToken) {
           setGiteeToken(result.giteeSyncToken);
         }
         if (result.lastSyncTime) {
           setLastSyncTime(new Date(result.lastSyncTime));
         }
+        if (result.autoSyncEnabled !== undefined) {
+          setAutoSyncEnabled(result.autoSyncEnabled);
+        }
       } catch (error) {
-        console.error('加载保存的 token 失败:', error);
+        console.error('加载保存的设置失败:', error);
       }
     };
 
     if (isOpen) {
-      loadSavedToken();
+      loadSavedSettings();
     }
   }, [isOpen]);
+
+  // 保存自动同步设置
+  const saveAutoSyncSetting = async (enabled) => {
+    try {
+      setAutoSyncEnabled(enabled);
+      await chrome.storage.local.set({ autoSyncEnabled: enabled });
+    } catch (error) {
+      console.error('保存自动同步设置失败:', error);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -444,6 +458,30 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
               最后同步时间: {lastSyncTime.toLocaleString('zh-CN')}
             </div>
           )}
+
+          {/* 自动同步开关 */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div>
+              <div className="flex items-center gap-2">
+                <CloudIcon className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  自动同步
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                添加收藏或调整分组时自动同步到云端
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoSyncEnabled}
+                onChange={(e) => saveAutoSyncSetting(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
 
           {/* 操作按钮 */}
           <div className="flex gap-3">
