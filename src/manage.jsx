@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { PlusIcon, SearchIcon, FolderIcon, TrashIcon, EditIcon, ExternalLinkIcon, ClockIcon, GlobeIcon, UploadIcon, ListIcon, GridIcon, CheckSquareIcon, SquareIcon, XIcon, DownloadIcon } from 'lucide-react';
+import { PlusIcon, SearchIcon, FolderIcon, TrashIcon, EditIcon, ExternalLinkIcon, ClockIcon, GlobeIcon, UploadIcon, ListIcon, GridIcon, CheckSquareIcon, SquareIcon, XIcon, DownloadIcon, SettingsIcon } from 'lucide-react';
 import { importBookmarksFromFile, exportBookmarksToFile } from './utils/bookmarkParser';
 import { ThemeProvider } from './contexts/ThemeContext';
 import DarkModeToggle from './components/DarkModeToggle';
+import SettingsToggle from './components/SettingsToggle';
+import SyncSettingsModal from './components/SyncSettingsModal';
 
 // 简化的UI组件
 const Button = ({ children, onClick, variant = 'primary', className = '', ...props }) => {
@@ -337,6 +339,7 @@ const ManagePage = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedBookmarks, setSelectedBookmarks] = useState(new Set());
   const [isBatchMoveModalOpen, setIsBatchMoveModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   // 加载收藏数据
   useEffect(() => {
@@ -1212,6 +1215,17 @@ const ManagePage = () => {
       
       {/* 夜间模式切换按钮 */}
       <DarkModeToggle />
+      
+      {/* 设置按钮 */}
+      <SettingsToggle onSyncClick={() => setIsSyncModalOpen(true)} />
+      
+      {/* 同步设置模态框 */}
+      <SyncSettingsModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        bookmarks={bookmarks}
+        groups={groups}
+      />
     </div>
   );
 };
