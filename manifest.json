@@ -25,5 +25,6 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "default_locale": "zh_CN"
 }
