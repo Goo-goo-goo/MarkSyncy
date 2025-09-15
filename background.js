@@ -133,6 +133,17 @@ async function bookmarkToGroup(tab, groupId) {
     // 保存到存储
     await chrome.storage.local.set({ bookmarks: bookmarks });
 
+    // 自动同步到云端（如果启用了自动同步）
+    const autoSyncResult = await chrome.storage.local.get(['autoSyncEnabled', 'giteeSyncToken']);
+    if (autoSyncResult.autoSyncEnabled && autoSyncResult.giteeSyncToken) {
+      try {
+        // 这里需要简化版的同步逻辑，因为background script无法直接访问完整的DOM
+        await autoSyncInBackground(bookmarks, groups);
+      } catch (syncError) {
+        console.error('自动同步失败:', syncError);
+      }
+    }
+
     // 显示成功消息
     chrome.action.setBadgeText({ text: "✓" });
     chrome.action.setBadgeBackgroundColor({ color: "#4CAF50" });
@@ -152,6 +163,99 @@ async function bookmarkToGroup(tab, groupId) {
     setTimeout(() => {
       chrome.action.setBadgeText({ text: "" });
     }, 3000);
+  }
+}
+
+// 后台自动同步功能
+async function autoSyncInBackground(bookmarks, groups) {
+  const GITEE_API_BASE = 'https://gitee.com/api/v5';
+  const REPO_NAME = 'marksyncy-bookmarks';
+  const FILE_PATH = 'bookmarks.json';
+  
+  try {
+    const result = await chrome.storage.local.get(['giteeSyncToken']);
+    const token = result.giteeSyncToken;
+    
+    if (!token) return;
+    
+    // 验证 Token
+    const userResponse = await fetch(`${GITEE_API_BASE}/user`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    
+    if (!userResponse.ok) return;
+    
+    const user = await userResponse.json();
+    
+    // 检查仓库
+    const repoResponse = await fetch(`${GITEE_API_BASE}/repos/${user.login}/${REPO_NAME}`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    
+    let repoExists = repoResponse.ok;
+    
+    // 如果仓库不存在，创建仓库
+    if (!repoExists) {
+      await fetch(`${GITEE_API_BASE}/user/repos`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: REPO_NAME,
+          description: 'MarkSyncy 书签同步仓库',
+          private: false,
+          auto_init: true,
+        }),
+      });
+    }
+    
+    // 准备数据
+    const bookmarksData = {
+      bookmarks: bookmarks,
+      groups: groups,
+      syncTime: new Date().toISOString(),
+      version: '1.0',
+    };
+    
+    // 检查文件是否存在
+    const fileResponse = await fetch(`${GITEE_API_BASE}/repos/${user.login}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    
+    let sha = null;
+    if (fileResponse.ok) {
+      const fileData = await fileResponse.json();
+      if (!Array.isArray(fileData)) {
+        sha = fileData.sha;
+      }
+    }
+    
+    // 上传文件
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(bookmarksData, null, 2))));
+    const requestBody = {
+      content: content,
+      message: `Auto sync bookmarks - ${new Date().toISOString()}`,
+      branch: 'master',
+    };
+    
+    if (sha) {
+      requestBody.sha = sha;
+    }
+    
+    await fetch(`${GITEE_API_BASE}/repos/${user.login}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      method: sha ? 'PUT' : 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+    
+    console.log('后台自动同步成功');
+  } catch (error) {
+    console.error('后台自动同步失败:', error);
   }
 }
 

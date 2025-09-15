@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "MarkSyncy - 网页收藏器",
   "version": "1.0.0",
-  "description": "一个简单的网页收藏扩展，支持右键菜单收藏网页",
+  "description": "一个简单的网页收藏扩展，支持右键菜单收藏网页, 支持多端同步收藏",
   "permissions": [
     "contextMenus",
     "storage",
