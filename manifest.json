@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "MarkSyncy - 网页收藏器",
+  "name": "__MSG_extName__",
   "version": "1.0.0",
-  "description": "一个简单的网页收藏扩展，支持右键菜单收藏网页, 支持多端同步收藏",
+  "description": "__MSG_extDesc__",
   "permissions": [
     "contextMenus",
     "storage",
@@ -13,7 +13,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "MarkSyncy"
+    "default_title": "__MSG_extName__"
   },
   "icons": {
     "16": "icons/16.png",

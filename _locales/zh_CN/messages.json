@@ -1,0 +1,26 @@
+{
+  "extName": {
+    "message": "MarkSyncy 书签管理器",
+    "description": "扩展名称"
+  },
+  "extDesc": {
+    "message": "强大的网页收藏管理扩展，支持分组收藏、智能搜索、数据同步等功能",
+    "description": "扩展描述"
+  },
+  "contextMenuTitle": {
+    "message": "收藏此网页到...",
+    "description": "右键菜单标题"
+  },
+  "defaultGroupName": {
+    "message": "默认分组",
+    "description": "默认分组名称"
+  },
+  "bookmarkSuccess": {
+    "message": "收藏成功！",
+    "description": "收藏成功提示"
+  },
+  "bookmarkFailed": {
+    "message": "收藏失败，请重试",
+    "description": "收藏失败提示"
+  }
+}

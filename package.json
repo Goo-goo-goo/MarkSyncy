@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:extension": "vite build && cp manifest.json dist/ && cp background.js dist/ && cp content.js dist/ && cp -r icons dist/",
+    "build:extension": "vite build && cp manifest.json dist/ && cp background.js dist/ && cp content.js dist/ && cp -r icons dist/ && cp -r _locales dist/",
     "build:manage": "npx tailwindcss -i src/manage.css -o dist/manage-bundle.css --minify && node build-manage.js",
     "build:all": "npm run build:extension && npm run build:manage"
   },
