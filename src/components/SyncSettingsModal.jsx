@@ -9,6 +9,9 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
   const [syncMessage, setSyncMessage] = useState('');
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState(null);
+  const [hasConfiguredSync, setHasConfiguredSync] = useState(false);
 
   // Gitee API 配置
   const GITEE_API_BASE = 'https://gitee.com/api/v5';
@@ -553,6 +556,7 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
       setSyncStatus('success');
       setSyncMessage('同步成功！');
       setLastSyncTime(new Date());
+      setHasConfiguredSync(true);
 
       // 保存同步状态
       await chrome.storage.local.set({
@@ -625,6 +629,7 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
       setSyncStatus('success');
       setSyncMessage('从云端同步成功！');
       setLastSyncTime(new Date());
+      setHasConfiguredSync(true);
 
       // 保存同步状态
       await chrome.storage.local.set({
@@ -659,6 +664,11 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
         if (result.autoSyncEnabled !== undefined) {
           setAutoSyncEnabled(result.autoSyncEnabled);
         }
+
+        // 检查是否已经配置了同步
+        const hasGiteeConfigured = !!(result.syncProvider === 'gitee' && result.giteeSyncToken);
+        const hasGithubConfigured = !!(result.syncProvider === 'github' && result.githubSyncToken);
+        setHasConfiguredSync(hasGiteeConfigured || hasGithubConfigured);
       } catch (error) {
         console.error('加载保存的设置失败:', error);
       }
@@ -679,7 +689,130 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
     }
   };
 
+  // 处理同步方式切换
+  const handleProviderSwitch = (newProvider) => {
+    if (syncProvider === newProvider) return; // 如果选择的是当前provider，不做任何操作
+
+    // 如果已经配置了同步且要切换到不同的provider，显示确认对话框
+    if (hasConfiguredSync && (giteeToken || githubToken)) {
+      setPendingProvider(newProvider);
+      setShowSwitchConfirm(true);
+    } else {
+      // 直接切换
+      switchProvider(newProvider);
+    }
+  };
+
+  // 确认切换同步方式
+  const confirmSwitchProvider = async () => {
+    if (!pendingProvider) return;
+
+    // 清除当前配置
+    await clearCurrentProviderConfig();
+
+    // 切换到新的provider
+    switchProvider(pendingProvider);
+
+    // 关闭确认对话框
+    setShowSwitchConfirm(false);
+    setPendingProvider(null);
+  };
+
+  // 切换同步方式
+  const switchProvider = (newProvider) => {
+    setSyncProvider(newProvider);
+    // 清除其他provider的token
+    if (newProvider === 'gitee') {
+      setGithubToken('');
+    } else {
+      setGiteeToken('');
+    }
+  };
+
+  // 清除当前provider的配置
+  const clearCurrentProviderConfig = async () => {
+    try {
+      // 清除storage中的配置
+      await chrome.storage.local.set({
+        syncProvider: null,
+        giteeSyncToken: '',
+        githubSyncToken: '',
+        autoSyncEnabled: false,
+        lastSyncTime: null
+      });
+
+      // 清除本地状态
+      setGiteeToken('');
+      setGithubToken('');
+      setAutoSyncEnabled(false);
+      setLastSyncTime(null);
+      setHasConfiguredSync(false);
+      setSyncStatus('idle');
+      setSyncMessage('');
+    } catch (error) {
+      console.error('清除同步配置失败:', error);
+    }
+  };
+
+  // 取消切换确认
+  const cancelSwitchProvider = () => {
+    setShowSwitchConfirm(false);
+    setPendingProvider(null);
+  };
+
   if (!isOpen) return null;
+
+  // 确认切换对话框
+  if (showSwitchConfirm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-scale-up">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <AlertCircleIcon className="w-5 h-5 text-yellow-500" />
+              确认切换同步方式
+            </h3>
+            <button
+              onClick={cancelSwitchProvider}
+              className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-xl"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                您当前已配置了 <strong>{syncProvider === 'gitee' ? 'Gitee' : 'GitHub'}</strong> 同步。
+                切换到 <strong>{pendingProvider === 'gitee' ? 'Gitee' : 'GitHub'}</strong> 将会：
+              </p>
+              <ul className="mt-2 text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside">
+                <li>清除当前的同步配置</li>
+                <li>删除保存的 Access Token</li>
+                <li>禁用自动同步功能</li>
+                <li>清除同步时间记录</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={confirmSwitchProvider}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                确认切换
+              </button>
+              <button
+                onClick={cancelSwitchProvider}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
@@ -705,37 +838,57 @@ const SyncSettingsModal = ({ isOpen, onClose, bookmarks, groups }) => {
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => setSyncProvider('gitee')}
-                className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-colors ${
+                onClick={() => handleProviderSwitch('gitee')}
+                className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-colors relative ${
                   syncProvider === 'gitee'
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                 }`}
               >
+                {syncProvider === 'gitee' && hasConfiguredSync && (
+                  <div className="absolute top-2 right-2 w-3 h-3 bg-green-500 rounded-full"></div>
+                )}
                 <GitBranchIcon className="w-8 h-8 mb-2 text-red-600" />
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Gitee</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">国内平台</span>
+                {syncProvider === 'gitee' && giteeToken && (
+                  <span className="text-xs text-green-600 dark:text-green-400 mt-1">已配置</span>
+                )}
               </button>
               <button
-                onClick={() => setSyncProvider('github')}
-                className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-colors ${
+                onClick={() => handleProviderSwitch('github')}
+                className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-colors relative ${
                   syncProvider === 'github'
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                 }`}
               >
+                {syncProvider === 'github' && hasConfiguredSync && (
+                  <div className="absolute top-2 right-2 w-3 h-3 bg-green-500 rounded-full"></div>
+                )}
                 <GithubIcon className="w-8 h-8 mb-2 text-gray-900 dark:text-white" />
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">GitHub</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">全球平台</span>
+                {syncProvider === 'github' && githubToken && (
+                  <span className="text-xs text-green-600 dark:text-green-400 mt-1">已配置</span>
+                )}
               </button>
             </div>
           </div>
 
           {/* Token 设置 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {syncProvider === 'github' ? 'GitHub Access Token' : 'Gitee Access Token'}
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {syncProvider === 'github' ? 'GitHub Access Token' : 'Gitee Access Token'}
+              </label>
+              {hasConfiguredSync && (
+                <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  当前使用的同步方式
+                </span>
+              )}
+            </div>
             <input
               type="password"
               value={syncProvider === 'github' ? githubToken : giteeToken}
