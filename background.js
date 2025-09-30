@@ -134,13 +134,20 @@ async function bookmarkToGroup(tab, groupId) {
     await chrome.storage.local.set({ bookmarks: bookmarks });
 
     // 自动同步到云端（如果启用了自动同步）
-    const autoSyncResult = await chrome.storage.local.get(['autoSyncEnabled', 'giteeSyncToken']);
-    if (autoSyncResult.autoSyncEnabled && autoSyncResult.giteeSyncToken) {
-      try {
-        // 这里需要简化版的同步逻辑，因为background script无法直接访问完整的DOM
-        await autoSyncInBackground(bookmarks, groups);
-      } catch (syncError) {
-        console.error('自动同步失败:', syncError);
+    const autoSyncResult = await chrome.storage.local.get(['autoSyncEnabled', 'syncProvider', 'giteeSyncToken', 'githubSyncToken']);
+    const { autoSyncEnabled, syncProvider, giteeSyncToken, githubSyncToken } = autoSyncResult;
+
+    if (autoSyncEnabled) {
+      const provider = syncProvider || 'gitee';
+      const token = provider === 'github' ? githubSyncToken : giteeSyncToken;
+
+      if (token) {
+        try {
+          // 这里需要简化版的同步逻辑，因为background script无法直接访问完整的DOM
+          await autoSyncInBackground(bookmarks, groups);
+        } catch (syncError) {
+          console.error('自动同步失败:', syncError);
+        }
       }
     }
 
@@ -169,48 +176,76 @@ async function bookmarkToGroup(tab, groupId) {
 // 后台自动同步功能
 async function autoSyncInBackground(bookmarks, groups) {
   const GITEE_API_BASE = 'https://gitee.com/api/v5';
+  const GITHUB_API_BASE = 'https://api.github.com';
   const REPO_NAME = 'marksyncy-bookmarks';
   const FILE_PATH = 'bookmarks.json';
-  
+
   try {
-    const result = await chrome.storage.local.get(['giteeSyncToken']);
-    const token = result.giteeSyncToken;
-    
+    // 获取同步配置
+    const result = await chrome.storage.local.get(['syncProvider', 'giteeSyncToken', 'githubSyncToken', 'autoSyncEnabled']);
+    const { syncProvider, giteeSyncToken, githubSyncToken, autoSyncEnabled } = result;
+
+    if (!autoSyncEnabled) return;
+
+    // 确定使用的平台和token
+    const provider = syncProvider || 'gitee';
+    const token = provider === 'github' ? githubSyncToken : giteeSyncToken;
+    const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+
     if (!token) return;
-    
+
     // 验证 Token
-    const userResponse = await fetch(`${GITEE_API_BASE}/user`, {
-      headers: { 'Authorization': `token ${token}` }
+    const authHeader = provider === 'github' ? `Bearer ${token}` : `token ${token}`;
+    const userResponse = await fetch(`${apiBase}/user`, {
+      headers: { 'Authorization': authHeader }
     });
-    
+
     if (!userResponse.ok) return;
-    
+
     const user = await userResponse.json();
-    
+
     // 检查仓库
-    const repoResponse = await fetch(`${GITEE_API_BASE}/repos/${user.login}/${REPO_NAME}`, {
-      headers: { 'Authorization': `token ${token}` }
+    const repoResponse = await fetch(`${apiBase}/repos/${user.login}/${REPO_NAME}`, {
+      headers: { 'Authorization': authHeader }
     });
-    
+
     let repoExists = repoResponse.ok;
-    
+
     // 如果仓库不存在，创建仓库
     if (!repoExists) {
-      await fetch(`${GITEE_API_BASE}/user/repos`, {
+      const createBody = provider === 'github' ? {
+        name: REPO_NAME,
+        description: 'MarkSyncy bookmarks sync repository',
+        private: false,
+        auto_init: true,
+      } : {
+        name: REPO_NAME,
+        description: 'MarkSyncy 书签同步仓库',
+        private: false,
+        auto_init: true,
+      };
+
+      await fetch(`${apiBase}/user/repos`, {
         method: 'POST',
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: REPO_NAME,
-          description: 'MarkSyncy 书签同步仓库',
-          private: false,
-          auto_init: true,
-        }),
+        body: JSON.stringify(createBody),
       });
     }
-    
+
+    // 获取默认分支
+    const defaultBranchResponse = await fetch(`${apiBase}/repos/${user.login}/${REPO_NAME}`, {
+      headers: { 'Authorization': authHeader }
+    });
+
+    let defaultBranch = provider === 'github' ? 'main' : 'master';
+    if (defaultBranchResponse.ok) {
+      const repoData = await defaultBranchResponse.json();
+      defaultBranch = repoData.default_branch || defaultBranch;
+    }
+
     // 准备数据
     const bookmarksData = {
       bookmarks: bookmarks,
@@ -218,42 +253,49 @@ async function autoSyncInBackground(bookmarks, groups) {
       syncTime: new Date().toISOString(),
       version: '1.0',
     };
-    
+
     // 检查文件是否存在
-    const fileResponse = await fetch(`${GITEE_API_BASE}/repos/${user.login}/${REPO_NAME}/contents/${FILE_PATH}`, {
-      headers: { 'Authorization': `token ${token}` }
+    const fileResponse = await fetch(`${apiBase}/repos/${user.login}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      headers: { 'Authorization': authHeader }
     });
-    
+
     let sha = null;
     if (fileResponse.ok) {
       const fileData = await fileResponse.json();
-      if (!Array.isArray(fileData)) {
+      if (provider === 'gitee') {
+        if (!Array.isArray(fileData)) {
+          sha = fileData.sha;
+        }
+      } else {
         sha = fileData.sha;
       }
     }
-    
+
     // 上传文件
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(bookmarksData, null, 2))));
     const requestBody = {
       content: content,
       message: `Auto sync bookmarks - ${new Date().toISOString()}`,
-      branch: 'master',
+      branch: defaultBranch,
     };
-    
+
     if (sha) {
       requestBody.sha = sha;
     }
-    
-    await fetch(`${GITEE_API_BASE}/repos/${user.login}/${REPO_NAME}/contents/${FILE_PATH}`, {
-      method: sha ? 'PUT' : 'POST',
+
+    // GitHub API 必须使用 PUT 方法
+    const method = provider === 'github' ? 'PUT' : (sha ? 'PUT' : 'POST');
+
+    await fetch(`${apiBase}/repos/${user.login}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      method: method,
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': authHeader,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
     });
-    
-    console.log('后台自动同步成功');
+
+    console.log(`${provider} 后台自动同步成功`);
   } catch (error) {
     console.error('后台自动同步失败:', error);
   }

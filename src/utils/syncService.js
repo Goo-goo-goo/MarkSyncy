@@ -37,14 +37,16 @@ class SyncService {
   // 获取同步配置
   async getSyncConfig() {
     try {
-      const result = await chrome.storage.local.get(['giteeSyncToken', 'autoSyncEnabled']);
+      const result = await chrome.storage.local.get(['syncProvider', 'giteeSyncToken', 'githubSyncToken', 'autoSyncEnabled']);
       return {
-        token: result.giteeSyncToken || '',
+        provider: result.syncProvider || 'gitee',
+        giteeToken: result.giteeSyncToken || '',
+        githubToken: result.githubSyncToken || '',
         enabled: result.autoSyncEnabled || false
       };
     } catch (error) {
       console.error('获取同步配置失败:', error);
-      return { token: '', enabled: false };
+      return { provider: 'gitee', giteeToken: '', githubToken: '', enabled: false };
     }
   }
 
@@ -166,7 +168,9 @@ class SyncService {
     }
 
     const config = await this.getSyncConfig();
-    if (!config.enabled || !config.token) {
+    const token = config.provider === 'github' ? config.githubToken : config.giteeToken;
+
+    if (!config.enabled || !token) {
       console.log('自动同步未启用或未配置Token');
       return false;
     }
@@ -177,7 +181,7 @@ class SyncService {
 
     try {
       // 调用同步到云端的逻辑
-      const success = await this.syncToCloudImpl(config.token, bookmarks, groups);
+      const success = await this.syncToCloudImpl(token, bookmarks, groups, config.provider);
       
       if (success) {
         this.notifySyncStatus('success', '自动同步完成');
@@ -211,7 +215,9 @@ class SyncService {
     }
 
     const config = await this.getSyncConfig();
-    if (!config.enabled || !config.token) {
+    const token = config.provider === 'github' ? config.githubToken : config.giteeToken;
+
+    if (!config.enabled || !token) {
       console.log('自动同步未启用或未配置Token');
       return false;
     }
@@ -236,7 +242,7 @@ class SyncService {
 
     try {
       // 调用从云端同步的逻辑
-      const success = await this.syncFromCloudImpl(config.token);
+      const success = await this.syncFromCloudImpl(token, config.provider);
       
       if (success) {
         this.notifySyncStatus('success', '从云端同步完成');
@@ -270,20 +276,30 @@ class SyncService {
   }
 
   // 同步到云端实现（从SyncSettingsModal复制并修改）
-  async syncToCloudImpl(token, bookmarks, groups) {
+  async syncToCloudImpl(token, bookmarks, groups, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
     const FILE_PATH = 'bookmarks.json';
 
     try {
       // 1. 验证 Token 并获取用户信息
-      const user = await this.validateTokenAndGetUser(token);
-      
+      const user = await this.validateTokenAndGetUser(token, provider);
+
       // 2. 检查仓库是否存在
-      const repoCheck = await this.checkRepositoryExists(token, user.login);
-      
+      const repoCheck = await this.checkRepositoryExists(token, user.login, provider);
+
       if (!repoCheck.exists) {
-        await this.createRepository(token);
+        const createResult = await this.createRepository(token, provider);
+        console.log('自动同步创建仓库结果:', createResult);
+
+        // 再次检查仓库是否真的创建成功
+        const retryCheck = await this.checkRepositoryExists(token, user.login, provider);
+        console.log('自动同步创建后再次检查仓库:', retryCheck);
+
+        if (!retryCheck.exists) {
+          throw new Error('仓库创建失败，请检查您的Token权限');
+        }
       }
 
       // 3. 准备书签数据
@@ -295,11 +311,11 @@ class SyncService {
       };
 
       // 4. 检查文件是否存在
-      const fileCheck = await this.getFileSHA(token, user.login);
-      
+      const fileCheck = await this.getFileSHA(token, user.login, provider);
+
       // 5. 上传文件
       const content = this.safeBase64Encode(JSON.stringify(bookmarksData, null, 2));
-      await this.uploadFile(token, user.login, content, fileCheck.sha);
+      await this.uploadFile(token, user.login, content, fileCheck.sha, provider);
 
       return true;
     } catch (error) {
@@ -309,25 +325,26 @@ class SyncService {
   }
 
   // 从云端同步实现（从SyncSettingsModal复制并修改）
-  async syncFromCloudImpl(token) {
+  async syncFromCloudImpl(token, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
     const FILE_PATH = 'bookmarks.json';
 
     try {
       // 1. 验证 Token 并获取用户信息
-      const user = await this.validateTokenAndGetUser(token);
-      
+      const user = await this.validateTokenAndGetUser(token, provider);
+
       // 2. 检查仓库是否存在
-      const repoCheck = await this.checkRepositoryExists(token, user.login);
-      
+      const repoCheck = await this.checkRepositoryExists(token, user.login, provider);
+
       if (!repoCheck.exists) {
         return false;
       }
 
       // 3. 下载文件
-      const fileDownload = await this.downloadFile(token, user.login);
-      
+      const fileDownload = await this.downloadFile(token, user.login, provider);
+
       if (!fileDownload.exists) {
         return false;
       }
@@ -355,13 +372,19 @@ class SyncService {
   }
 
   // 以下方法从SyncSettingsModal复制
-  async validateTokenAndGetUser(token) {
+  async validateTokenAndGetUser(token, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
-    
+    const GITHUB_API_BASE = 'https://api.github.com';
+
     try {
-      const response = await fetch(`${GITEE_API_BASE}/user`, {
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      const response = await fetch(`${apiBase}/user`, {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
         },
       });
 
@@ -379,14 +402,20 @@ class SyncService {
     }
   }
 
-  async checkRepositoryExists(token, username) {
+  async checkRepositoryExists(token, username, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
-    
+
     try {
-      const response = await fetch(`${GITEE_API_BASE}/repos/${username}/${REPO_NAME}`, {
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      const response = await fetch(`${apiBase}/repos/${username}/${REPO_NAME}`, {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
         },
       });
 
@@ -402,35 +431,73 @@ class SyncService {
     }
   }
 
-  async createRepository(token) {
+  async createRepository(token, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
-    
+
     try {
-      const response = await fetch(`${GITEE_API_BASE}/user/repos`, {
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      const body = provider === 'github' ? {
+        name: REPO_NAME,
+        description: 'MarkSyncy bookmarks sync repository',
+        private: false,
+        auto_init: true,
+      } : {
+        name: REPO_NAME,
+        description: 'MarkSyncy 书签同步仓库',
+        private: false,
+        auto_init: true,
+      };
+
+      const url = `${apiBase}/user/repos`;
+      console.log('自动同步创建仓库请求:', url);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: REPO_NAME,
-          description: 'MarkSyncy 书签同步仓库',
-          private: false,
-          auto_init: true,
-        }),
+        body: JSON.stringify(body),
       });
 
       const responseText = await response.text();
-      
+      console.log('自动同步创建仓库响应状态:', response.status);
+
       if (!response.ok) {
         try {
           const error = JSON.parse(responseText);
-          if (error.message && error.message.includes('已存在同地址仓库')) {
+          console.log('自动同步创建仓库错误详情:', error);
+
+          if (error.message && (
+            error.message.includes('已存在同地址仓库') ||
+            error.message.includes('name already exists') ||
+            error.message.includes('repository already exists') ||
+            (error.errors && error.errors.some(e => e.message.includes('already exists')))
+          )) {
             return { exists: true };
           }
+
+          // 特殊处理 GitHub 的权限错误
+          if (provider === 'github' && response.status === 403) {
+            throw new Error('GitHub Token 权限不足，请确保 Token 有 repo 权限');
+          }
+
+          // 特殊处理 GitHub 的认证错误
+          if (provider === 'github' && response.status === 401) {
+            throw new Error('GitHub Token 无效或已过期');
+          }
+
           throw new Error(error.message || `创建仓库失败 (${response.status})`);
         } catch (parseError) {
+          if (parseError.message) {
+            throw parseError;
+          }
           throw new Error(`创建仓库失败: ${responseText.substring(0, 100)}`);
         }
       }
@@ -441,17 +508,23 @@ class SyncService {
     }
   }
 
-  async getFileSHA(token, username) {
+  async getFileSHA(token, username, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
     const FILE_PATH = 'bookmarks.json';
-    
+
     try {
-      const url = `${GITEE_API_BASE}/repos/${username}/${REPO_NAME}/contents/${FILE_PATH}`;
-      
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      const url = `${apiBase}/repos/${username}/${REPO_NAME}/contents/${FILE_PATH}`;
+
       const response = await fetch(url, {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
         },
       });
 
@@ -462,43 +535,86 @@ class SyncService {
       }
 
       const data = await response.json();
-      
-      if (Array.isArray(data) && data.length === 0) {
+
+      // Gitee API 返回空数组表示文件不存在
+      if (provider === 'gitee' && Array.isArray(data) && data.length === 0) {
         return { exists: false, sha: null };
       }
-      
+
       return { exists: true, sha: data.sha };
     } catch (error) {
       throw error;
     }
   }
 
-  async uploadFile(token, username, content, sha = null) {
+  async getDefaultBranch(token, username, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
+    const REPO_NAME = 'marksyncy-bookmarks';
+
+    try {
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      const response = await fetch(`${apiBase}/repos/${username}/${REPO_NAME}`, {
+        headers: {
+          'Authorization': authHeader,
+        },
+      });
+
+      if (!response.ok) {
+        console.log(`获取默认分支失败: ${response.status}`);
+        return provider === 'github' ? 'main' : 'master'; // 返回默认值
+      }
+
+      const repoData = await response.json();
+      const defaultBranch = repoData.default_branch;
+      console.log(`仓库默认分支: ${defaultBranch}`);
+      return defaultBranch;
+    } catch (error) {
+      console.log(`获取默认分支时出错:`, error);
+      return provider === 'github' ? 'main' : 'master'; // 返回默认值
+    }
+  }
+
+  async uploadFile(token, username, content, sha = null, provider) {
+    const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
     const FILE_PATH = 'bookmarks.json';
-    
+
     try {
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      // 获取默认分支
+      const defaultBranch = await this.getDefaultBranch(token, username, provider);
+
       const requestBody = {
         content: content,
         message: `Auto sync bookmarks - ${new Date().toISOString()}`,
-        branch: 'master',
+        branch: defaultBranch,
       };
 
-      const url = `${GITEE_API_BASE}/repos/${username}/${REPO_NAME}/contents/${FILE_PATH}`;
+      const url = `${apiBase}/repos/${username}/${REPO_NAME}/contents/${FILE_PATH}`;
 
       let method;
       if (sha && sha.trim() !== '') {
         requestBody.sha = sha;
         method = 'PUT';
       } else {
-        method = 'POST';
+        // GitHub API 要求使用 PUT 方法创建文件
+        method = 'PUT';
       }
-      
+
       const response = await fetch(url, {
         method: method,
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
@@ -520,15 +636,21 @@ class SyncService {
     }
   }
 
-  async downloadFile(token, username) {
+  async downloadFile(token, username, provider) {
     const GITEE_API_BASE = 'https://gitee.com/api/v5';
+    const GITHUB_API_BASE = 'https://api.github.com';
     const REPO_NAME = 'marksyncy-bookmarks';
     const FILE_PATH = 'bookmarks.json';
-    
+
     try {
-      const response = await fetch(`${GITEE_API_BASE}/repos/${username}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      const apiBase = provider === 'github' ? GITHUB_API_BASE : GITEE_API_BASE;
+      const authHeader = provider === 'github'
+        ? `Bearer ${token}`
+        : `token ${token}`;
+
+      const response = await fetch(`${apiBase}/repos/${username}/${REPO_NAME}/contents/${FILE_PATH}`, {
         headers: {
-          'Authorization': `token ${token}`,
+          'Authorization': authHeader,
         },
       });
 
